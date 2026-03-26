@@ -8,21 +8,18 @@ const DEFAULT_UPLOADS = [
     category: "Portraits",
     description: "Detailed portrait work with handwritten textures and symbolic line art.",
     image: "images/about.jpg",
-    seed: true,
   },
   {
     title: "Silent Mark",
     category: "Sketches",
     description: "Sketchbook-style layouts with raw line energy and dramatic contrast.",
     image: "images/contact.jpg",
-    seed: true,
   },
   {
     title: "Crimson Gate",
     category: "Fantasy",
     description: "Dark world concepts for eerie settings, symbols, and dreamlike scenes.",
     image: "images/services.jpg",
-    seed: true,
   },
 ];
 
@@ -32,6 +29,14 @@ function getStoredAuth() {
 
 function setStoredAuth(value) {
   localStorage.setItem(AUTH_KEY, String(value));
+}
+
+function clearStoredProfile() {
+  localStorage.removeItem(PROFILE_KEY);
+}
+
+function clearStoredUploads() {
+  localStorage.removeItem(UPLOADS_KEY);
 }
 
 function getStoredUploads() {
@@ -201,7 +206,10 @@ function initProfilePage() {
 
   logoutButton.addEventListener("click", () => {
     setStoredAuth(false);
-    logoutStatus.textContent = "You have been logged out. Upload access is now locked.";
+    clearStoredProfile();
+    clearStoredUploads();
+    logoutStatus.textContent = "You have been logged out. Profile and uploaded collection items were removed.";
+    renderSavedUploads();
     renderProfileSections();
   });
 }
@@ -230,7 +238,7 @@ function initUploadPage() {
   const artPreviewTitle = document.getElementById("artPreviewTitle");
   const artPreviewCategory = document.getElementById("artPreviewCategory");
   const artPreviewDescription = document.getElementById("artPreviewDescription");
-  let uploadedImageData = artPreviewImage.src;
+  let uploadedImageData = null;
 
   function syncAccess() {
     const isAuthorized = getStoredAuth();
@@ -292,18 +300,22 @@ function initUploadPage() {
     const [file] = event.target.files;
 
     if (!file) {
+      uploadedImageData = null;
+      artPreviewImage.src = "images/about.jpg";
       return;
     }
 
     try {
       uploadedImageData = await readFileAsDataUrl(file);
       artPreviewImage.src = uploadedImageData;
+      artStatus.textContent = "";
     } catch {
+      uploadedImageData = null;
       artStatus.textContent = "Image preview failed. Please choose another file.";
     }
   });
 
-  artForm.addEventListener("submit", async (event) => {
+  artForm.addEventListener("submit", (event) => {
     event.preventDefault();
 
     if (!getStoredAuth()) {
@@ -312,18 +324,23 @@ function initUploadPage() {
       return;
     }
 
+    if (!uploadedImageData) {
+      artStatus.textContent = "Please choose an image before uploading to the collection.";
+      return;
+    }
+
     const upload = {
       title: artTitle.value.trim() || "Untitled Art",
       category: artCategory.value,
       description: artDescription.value.trim() || "User-submitted artwork from Dracky Dark World.",
-      image: uploadedImageData || artPreviewImage.src,
+      image: uploadedImageData,
     };
 
     saveUpload(upload);
     artStatus.textContent = "Artwork uploaded successfully. View it on the Collections page.";
     artForm.reset();
     artPreviewImage.src = "images/about.jpg";
-    uploadedImageData = "images/about.jpg";
+    uploadedImageData = null;
     artPreviewTitle.textContent = "Untitled Art";
     artPreviewCategory.textContent = "Portraits";
     artPreviewDescription.textContent = "Your uploaded art preview will appear here before publish.";
